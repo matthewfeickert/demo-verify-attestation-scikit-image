@@ -1,0 +1,46 @@
+name: Reproducer
+
+on:
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  example:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+      fail-fast: false
+
+    steps:
+    - name: Download multiple artifacts
+      run: |
+        mkdir dist
+        cd dist
+        curl -sLO https://files.pythonhosted.org/packages/51/da/1366cdb2e96bb5dac67c1d22d2807c073269f330d0b73ce2e65358c58c52/scikit_image-0.24.0rc1.tar.gz
+        curl -sLO https://files.pythonhosted.org/packages/df/ed/338cd1d83611c51a04b7439aa3135eeeffb8c9fdb40bfe519afa1b466bf6/scikit_image-0.24.0rc1-cp312-cp312-win_amd64.whl
+        curl -sLO https://files.pythonhosted.org/packages/28/c0/1d83a25ca0b06693ae51fe5d86d3fea0c03c805c7ce67c173a38aa0564dc/scikit_image-0.24.0rc1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+        cd ..
+
+    - name: List  artifacts
+      run: |
+        ls -l dist/*
+
+    - name: Verify artifact attestation
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      run: |
+        for artifact in dist/*; do
+            gh attestation verify "${artifact}" --repo ${{ github.repository }}
+        done
